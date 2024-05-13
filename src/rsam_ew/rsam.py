@@ -155,7 +155,8 @@ class RsamEW:
         df_list = []
 
         for date in dates:
-            daily_csv = os.path.join(extract_dir, f'{date.strftime('%Y-%m-%d')}.csv')
+            date_str = date.strftime('%Y-%m-%d')
+            daily_csv = os.path.join(extract_dir, f'{date_str}.csv')
             try:
                 df = pd.read_csv(daily_csv, index_col='datetime', parse_dates=True)
                 df_list.append(df)
