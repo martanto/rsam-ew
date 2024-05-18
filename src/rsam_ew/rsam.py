@@ -19,7 +19,7 @@ month_translator = {
 
 class RsamEW:
     def __init__(self, zip_file_location: str, station: str, channel: str, network: str = None, location: str = None,
-                 wildcard: str = '.dat', delimiter=',', combine_data: bool = False, current_dir: str = None,
+                 wildcard: str = '.DAT', delimiter=',', combine_data: bool = False, current_dir: str = None,
                  input_dir: str = None):
 
         if current_dir is None:
@@ -40,6 +40,8 @@ class RsamEW:
         self.output_dir, self.figures_dir, self.rsam_dir = self.check_directory(os.getcwd())
         self.extract_dir = self.extract_dir()
         self.filename: str = Path(zip_file_location).stem
+
+        zip_file_location = os.path.join(current_dir, zip_file_location)
         self.files: list = self.get_files(zip_file_location, wildcard, delimiter)
 
         if combine_data is True:
@@ -178,7 +180,7 @@ class RsamEW:
                 y_min: float = 0, y_max: float = None) -> plt.Axes:
 
         ax.scatter(df.index, df['value'], c='k', alpha=0.3, s=10, label='10 minutes')
-        ax.plot(df.index, df[smoothing], c='red', label='1 day', alpha=1)
+        ax.plot(df.index, df[smoothing], c='red', label=smoothing, alpha=1)
 
         ax.set_xlabel('Datetime', fontsize=12)
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=interval_day))
@@ -189,8 +191,9 @@ class RsamEW:
 
         return ax
 
-    def plot(self, start_date: str, end_date: str, title: str = None, smoothing: str = '1d', width: int = 12, height: int = 9,
-             interval_day: int = 1, y_min: float = 0, y_max: float = None, save: bool = True):
+    def plot(self, start_date: str, end_date: str, title: str = None, smoothing: str = '1d', width: int = 12,
+             height: int = 9, interval_day: int = 1, y_min: float = 0, y_max: float = None, show_gridline: bool = True,
+             save: bool = True):
         dates: DatetimeIndex = pd.date_range(start_date, end_date, freq="D")
 
         df = self.get_df(dates)
@@ -211,7 +214,8 @@ class RsamEW:
         ax.set_title('{} \n Periode {} - {}'.format(title, start_date, end_date), fontsize=14)
 
         plt.xticks(rotation=45)
-        plt.grid(visible=True, which='both')
+        if show_gridline is True:
+            plt.grid(visible=True, which='both')
 
         if save:
             save_path = os.path.join(self.figures_dir, f'rsam_{self.nslc}_{start_date}_{end_date}_{smoothing}.png')
