@@ -1,3 +1,4 @@
+from . import magma
 from .rsam import RsamEW
 
 from pkg_resources import get_distribution
@@ -10,5 +11,6 @@ __copyright__ = "Copyright (c) 2024"
 __url__ = "https://github.com/martanto/rsam-ew"
 
 __all__ = [
-    'RsamEW'
+    'RsamEW',
+    'magma'
 ]

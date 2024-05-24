@@ -1,3 +1,4 @@
+from .magma import Plot, colors
 from datetime import datetime
 from zipfile import ZipFile, ZipInfo
 from typing import Tuple
@@ -8,6 +9,7 @@ import pandas as pd
 import os
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import matplotlib.ticker as mticker
 
 month_translator = {
     'Mei': 'May',
@@ -177,7 +179,10 @@ class RsamEW:
         return df
 
     def plot_ax(self, ax: plt.Axes, df: pd.DataFrame, smoothing: str = '1d', interval_day: int = 1,
-                y_min: float = 0, y_max: float = None) -> plt.Axes:
+                y_min: float = 0, y_max: float = None, show_gridline: bool = True) -> plt.Axes:
+
+        if y_max is None:
+            y_max = df['value'].max()
 
         ax.scatter(df.index, df['value'], c='k', alpha=0.3, s=10, label='10 minutes')
         ax.plot(df.index, df[smoothing], c='red', label=smoothing, alpha=1)
@@ -188,6 +193,9 @@ class RsamEW:
         ax.set_ylim(y_min, y_max)
         ax.set_xlim(df.first_valid_index(), df.last_valid_index())
         ax.legend(loc='upper right', fontsize='8', ncol=4)
+
+        if show_gridline is True:
+            ax.grid(visible=True, axis='x')
 
         return ax
 
@@ -202,20 +210,15 @@ class RsamEW:
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(width, height),
                                layout="constrained", sharex=True)
 
-        if y_max is None:
-            y_max = df['value'].max()
-
         if title is None:
             title = f'RSAM {self.nslc}'
 
         ax = self.plot_ax(ax, df=df, smoothing=smoothing, interval_day=interval_day,
-                          y_min=y_min, y_max=y_max)
+                          y_min=y_min, y_max=y_max, show_gridline=show_gridline)
 
         ax.set_title('{} \n Periode {} - {}'.format(title, start_date, end_date), fontsize=14)
 
         plt.xticks(rotation=45)
-        if show_gridline is True:
-            plt.grid(visible=True, which='both')
 
         if save:
             save_path = os.path.join(self.figures_dir, f'rsam_{self.nslc}_{start_date}_{end_date}_{smoothing}.png')
@@ -223,3 +226,61 @@ class RsamEW:
             print(f'📈 RSAM Graphics saved to {save_path}')
 
         return fig
+
+    def plot_with_magma(self, token: str, volcano_code: str,  start_date: str, end_date: str,
+                        smoothing: str = '1d', interval: int = 1, earthquake_events: str | list[str] = None,
+                        width: int = 12, height: int = None, height_per_eq: int = 2, y_min: float = 0, y_max: float = None,
+                        show_gridline: bool = True, height_ratios=None):
+
+        if height_ratios is None:
+            height_ratios = [1, 0.2]
+
+        magma_plot = Plot(
+            token=token,
+            volcano_code=volcano_code,
+            start_date=start_date,
+            end_date=end_date,
+            earthquake_events=earthquake_events,
+        )
+
+        df = magma_plot.df
+
+        if height is None:
+            height = df.columns.size + 1
+
+        fig = plt.figure(figsize=(width, height), dpi=100)
+
+        (fig_magma, fig_rsam) = fig.subfigures(nrows=2, ncols=1, height_ratios=height_ratios)
+
+        fig_magma.subplots_adjust(hspace=0.0)
+        fig_magma.supylabel('Jumlah')
+        axs_magma = fig_magma.subplots(nrows=len(df.columns), ncols=1, sharex=True)
+        for gempa, column_name in enumerate(df.columns):
+            axs_magma[gempa].bar(df.index, df[column_name], width=0.5, label=column_name,
+                                 color=colors[column_name], linewidth=0)
+            axs_magma[gempa].set_ylim([0, df[column_name].max() * 1.2])
+
+            axs_magma[gempa].legend(loc=2)
+            axs_magma[gempa].tick_params(labelbottom=False)
+            # axs_magma[gempa].yaxis.set_major_locator(mticker.MultipleLocator(1))
+            axs_magma[gempa].yaxis.get_major_ticks()[0].label1.set_visible(False)
+
+        dates: DatetimeIndex = pd.date_range(start_date, end_date, freq="D")
+
+        df = self.get_df(dates)
+
+        df[smoothing] = df['value'].rolling(smoothing, center=True).median()
+
+        ax_rsam = fig_rsam.subplots(nrows=1, ncols=1)
+        self.plot_ax(ax_rsam, df=df, smoothing=smoothing, interval_day=interval,
+                          y_min=y_min, y_max=y_max, show_gridline=show_gridline)
+
+        plt.tight_layout()
+        plt.tick_params(axis='both', which='major', labelsize=10)
+        plt.xticks(rotation=60)
+
+        save_path = os.path.join(self.figures_dir, f'rsam_magma_{start_date}_{end_date}_{smoothing}.png')
+        fig.savefig(save_path, dpi=300)
+        print(f'📈 Graphics saved to {save_path}')
+
+        plt.show()
